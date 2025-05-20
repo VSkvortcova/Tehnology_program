@@ -1,0 +1,210 @@
+#include <iostream>
+#include <stdexcept>
+
+using namespace std;
+
+// Контент элемента списка.
+struct content {
+    int intValue = 0;
+    double doubleValue = 0;
+    string stringValue = "";
+    
+    // Вывод содержимого.
+    void print() 
+    { 
+        printf("(%d, %f, %s)", intValue, doubleValue, stringValue.c_str());
+    }
+};
+
+// Элемент списка.
+class Node
+{
+    private:
+    Node *prev = nullptr; // Прошлый элемент.
+    Node *next = nullptr; // Следующий элемент.
+    
+    public:
+    content data; // Контент элемента.
+    
+    Node(content data)
+    {
+        this->data = data;
+    }
+    
+    // Вставить элемент списка после этого.
+    void insertAfter(Node* nodeToInsert) {
+        nodeToInsert->next = this->next;
+        nodeToInsert->prev = this;
+        
+        if (this->next != nullptr) {
+            this->next->prev = nodeToInsert;
+        }
+        
+        this->next = nodeToInsert;
+    }
+    
+    // Вставить элемент списка до этого.
+    void insertBefore(Node* nodeToInsert) {
+        nodeToInsert->prev = this->prev;
+        nodeToInsert->next = this;
+
+        if (this->prev != nullptr) {
+            this->prev->next = nodeToInsert;
+        }
+        
+        this->prev = nodeToInsert;
+    }
+    
+    // Удаление себя с подчисткой указателя.
+    void deleteSelf() {
+        if (this->prev != nullptr) {
+            this->prev->next = this->next;
+        }
+        
+        if (this->next != nullptr) {
+            this->next->prev = this->prev;
+        }
+        
+        delete this;
+    }
+    
+    // Получение следующего элемента.
+    Node* getNext() {
+        return this->next;
+    }
+    
+    // Получение прошлого элемента.
+    Node* getPrev() {
+        return this->prev;
+    }
+};
+
+// Класс списка.
+class DoublyLinkedList
+{
+    private:
+    Node *head = nullptr; // Первый элемент списа.
+    
+    public:
+    // Вставить элемент в начало списка.
+    void insertAtBeginning(content data)
+    {
+        Node* nodeToInsert = new Node(data);
+
+        
+        if (head == nullptr) {
+            head = nodeToInsert;
+            return;
+        }
+        
+        head->insertBefore(nodeToInsert);
+        
+        head = nodeToInsert;
+    }
+    
+    // Вставить элемент в конец списка.
+    void insertAtEnd(content data)
+    {
+        Node* nodeToInsert = new Node(data);
+        
+        if (head == nullptr) {
+            head = nodeToInsert;
+            return;
+        }
+
+        Node* tail = head;
+        while (tail->getNext() != nullptr) {
+            tail = tail->getNext();
+        }
+        
+        tail->insertAfter(nodeToInsert);
+    }
+    
+    // Вставить элемент в перед элементом с каким-то индексом.
+    void insertBeforeIndex(content data, int position)
+    {     
+        Node* nodeToInsert = new Node(data);
+
+        Node* current = get(position);
+        
+        current->insertBefore(nodeToInsert);
+        
+        if (current == head) {
+            head = nodeToInsert;
+        } 
+    }
+    
+    // Вставить элемент в после элемента с каким-то индексом.
+    void insertAfterIndex(content data, int position)
+    {
+        Node* nodeToInsert = new Node(data);
+        Node* current = get(position);
+        
+        current->insertAfter(nodeToInsert);
+    }
+    
+    // Удалить элемент с каким-то индексом.
+    void deleteElement(int position)
+    {
+        Node* nodeToDelete = get(position);
+        
+        if (nodeToDelete->getPrev() == nullptr) {
+            head = nodeToDelete->getNext();
+        }
+        
+        nodeToDelete->deleteSelf();
+    }
+    
+    // Получить элемент по позиции.
+    Node* get(int position) {
+        Node* current = head;
+        
+        for (int i = 0; i < position && current != nullptr; i++) {
+            current = current->getNext();
+        }
+        
+        if (current == nullptr) {
+            throw invalid_argument("Element with this index doesn't exist.");
+        }
+        
+        return current;
+    }
+    
+    // Вывести элементы списка.
+    void print() {
+        Node* current = head;
+        
+        while (current != nullptr) {
+            current->data.print();
+            if (current->getNext() != nullptr) {
+                cout << ", ";
+            }
+            current = current->getNext();
+        }
+        
+        cout << "\n"; 
+    }
+};
+
+int main() {
+    content first, second, third, forth;
+    first.intValue = 1;
+    second.intValue = 2;
+    third.intValue = 3;
+    forth.intValue = 4;
+    DoublyLinkedList list1;
+    
+    list1.insertAtBeginning(first);
+    list1.insertAtEnd(second);
+    
+    list1.insertAfterIndex(forth, 0);
+    
+    list1.insertBeforeIndex(third, 0);
+    list1.print();
+    
+    list1.deleteElement(3);
+    
+    std::cout << "After deleting" << std::endl;
+    
+    list1.print();
+}
