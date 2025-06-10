@@ -1,0 +1,148 @@
+#include <iostream>
+#include <string>
+#include <vector>
+
+// Secondary class with three data types
+class Item {
+private:
+    int id;
+    double value;
+    std::string name;
+
+public:
+    // Constructors
+    Item() : id(0), value(0.0), name("") {}
+    
+    Item(int _id, double _value, std::string _name) 
+        : id(_id), value(_value), name(_name) {}
+    
+    // Getters and setters
+    int getId() const { return id; }
+    double getValue() const { return value; }
+    std::string getName() const { return name; }
+    
+    void setId(int _id) { id = _id; }
+    void setValue(double _value) { value = _value; }
+    void setName(std::string _name) { name = _name; }
+    
+    // Print method
+    void print() const {
+        std::cout << "ID: " << id << ", Value: " << value << ", Name: " << name << std::endl;
+    }
+};
+
+// Primary class that depends on the secondary class
+class Collection {
+private:
+    std::vector<Item> items;
+    std::string collectionName;
+
+public:
+    // Constructor
+    Collection(std::string name = "Default Collection") : collectionName(name) {}
+    
+    // 1) Print all items
+    void printAll() const {
+        std::cout << "Collection: " << collectionName << std::endl;
+        std::cout << "Total items: " << items.size() << std::endl;
+        
+        if (items.empty()) {
+            std::cout << "The collection is empty." << std::endl;
+            return;
+        }
+        
+        for (size_t i = 0; i < items.size(); ++i) {
+            std::cout << "Item #" << i << ": ";
+            items[i].print();
+        }
+        std::cout << std::endl;
+    }
+    
+    // 2) Add an item (default - add to the end)
+    void add(const Item& item) {
+        items.push_back(item);
+        std::cout << "Item added to the collection." << std::endl;
+    }
+    
+    // 3) Add to the end (same as add)
+    void addToEnd(const Item& item) {
+        items.push_back(item);
+        std::cout << "Item added to the end of the collection." << std::endl;
+    }
+    
+    // 4) Add at the beginning of an index
+    void addAtIndexStart(const Item& item, size_t index) {
+        if (index >= items.size()) {
+            std::cout << "Index out of range. Item will be added to the end." << std::endl;
+            items.push_back(item);
+        } else {
+            items.insert(items.begin() + index, item);
+            std::cout << "Item added at the beginning of index " << index << "." << std::endl;
+        }
+    }
+    
+    // 5) Add at the end of an index
+    void addAtIndexEnd(const Item& item, size_t index) {
+        if (index >= items.size()) {
+            std::cout << "Index out of range. Item will be added to the end." << std::endl;
+            items.push_back(item);
+        } else {
+            items.insert(items.begin() + index + 1, item);
+            std::cout << "Item added after index " << index << "." << std::endl;
+        }
+    }
+    
+    // 6) Delete an item by index
+    void remove(size_t index) {
+        if (index >= items.size()) {
+            std::cout << "Index out of range. Nothing was removed." << std::endl;
+        } else {
+            items.erase(items.begin() + index);
+            std::cout << "Item at index " << index << " was removed." << std::endl;
+        }
+    }
+    
+    // Get collection size
+    size_t size() const {
+        return items.size();
+    }
+};
+
+int main() {
+    // Create a collection
+    Collection myCollection("My Items");
+    
+    // Add some items
+    Item item1(1, 10.5, "First");
+    Item item2(2, 20.7, "Second");
+    Item item3(3, 30.9, "Third");
+    
+    // Demonstrate all methods
+    std::cout << "===== Initial state =====" << std::endl;
+    myCollection.printAll();
+    
+    std::cout << "\n===== After adding item1 =====" << std::endl;
+    myCollection.add(item1);
+    myCollection.printAll();
+    
+    std::cout << "\n===== After adding item2 to the end =====" << std::endl;
+    myCollection.addToEnd(item2);
+    myCollection.printAll();
+    
+    std::cout << "\n===== After adding item3 at the beginning of index 0 =====" << std::endl;
+    myCollection.addAtIndexStart(item3, 0);
+    myCollection.printAll();
+    
+    // Create a new item
+    Item item4(4, 40.1, "Fourth");
+    
+    std::cout << "\n===== After adding item4 at the end of index 1 =====" << std::endl;
+    myCollection.addAtIndexEnd(item4, 1);
+    myCollection.printAll();
+    
+    std::cout << "\n===== After removing item at index 2 =====" << std::endl;
+    myCollection.remove(2);
+    myCollection.printAll();
+    
+    return 0;
+}
