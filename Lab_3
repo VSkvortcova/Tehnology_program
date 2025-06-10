@@ -1,0 +1,427 @@
+#include <iostream>
+#include <cmath>
+#include <vector>
+#include <memory>
+#include <array>
+#include <algorithm>
+
+// Constants for visualization
+const int CANVAS_WIDTH = 60;
+const int CANVAS_HEIGHT = 20;
+const char CANVAS_EMPTY = ' ';
+const char CANVAS_POINT = '*';
+
+// Canvas class for basic visualization
+class Canvas {
+private:
+    std::array<std::array<char, CANVAS_WIDTH>, CANVAS_HEIGHT> buffer;
+
+public:
+    Canvas() {
+        clear();
+    }
+
+    void clear() {
+        for (auto& row : buffer) {
+            row.fill(CANVAS_EMPTY);
+        }
+    }
+
+    void setPoint(int x, int y, char symbol = CANVAS_POINT) {
+        // Convert from Cartesian to array coordinates
+        int canvas_y = CANVAS_HEIGHT/2 - y;
+        int canvas_x = CANVAS_WIDTH/2 + x;
+        
+        if (canvas_x >= 0 && canvas_x < CANVAS_WIDTH && 
+            canvas_y >= 0 && canvas_y < CANVAS_HEIGHT) {
+            buffer[canvas_y][canvas_x] = symbol;
+        }
+    }
+
+    void drawLine(int x1, int y1, int x2, int y2) {
+        // Bresenham's line algorithm
+        int dx = abs(x2 - x1);
+        int dy = abs(y2 - y1);
+        int sx = (x1 < x2) ? 1 : -1;
+        int sy = (y1 < y2) ? 1 : -1;
+        int err = dx - dy;
+        
+        while (true) {
+            setPoint(x1, y1);
+            if (x1 == x2 && y1 == y2) break;
+            int e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x1 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y1 += sy;
+            }
+        }
+    }
+
+    void display() const {
+        // Draw coordinate axes
+        std::cout << "+" << std::string(CANVAS_WIDTH, '-') << "+" << std::endl;
+        
+        for (const auto& row : buffer) {
+            std::cout << "|";
+            for (char c : row) {
+                std::cout << c;
+            }
+            std::cout << "|" << std::endl;
+        }
+        
+        std::cout << "+" << std::string(CANVAS_WIDTH, '-') << "+" << std::endl;
+    }
+};
+
+// Global canvas object for all shapes to use
+Canvas globalCanvas;
+
+// Абстрактный класс Точка
+class Point {
+protected:
+    double x, y;
+
+public:
+    Point(double x = 0, double y = 0) : x(x), y(y) {}
+    virtual ~Point() {}
+
+    // Чисто виртуальные методы
+    virtual void draw() const = 0;
+    virtual void visualize() const = 0; // New method for visualization
+    virtual void erase() const = 0;
+    virtual void move(double dx, double dy) = 0;
+    virtual void rotate(double angle) = 0;
+
+    // Геттеры и сеттеры
+    double getX() const { return x; }
+    double getY() const { return y; }
+    void setX(double newX) { x = newX; }
+    void setY(double newY) { y = newY; }
+};
+
+// Класс Линия
+class Line : public Point {
+protected:
+    double x2, y2;
+
+public:
+    Line(double x1 = 0, double y1 = 0, double x2 = 0, double y2 = 0)
+        : Point(x1, y1), x2(x2), y2(y2) {}
+    
+    // Реализация виртуальных методов
+    void draw() const override {
+        std::cout << "Рисуем линию от (" << x << "," << y 
+                << ") до (" << x2 << "," << y2 << ")" << std::endl;
+    }
+    
+    void visualize() const override {
+        globalCanvas.drawLine(round(x), round(y), round(x2), round(y2));
+        globalCanvas.display();
+        globalCanvas.clear();
+    }
+    
+    void erase() const override {
+        std::cout << "Стираем линию от (" << x << "," << y 
+                << ") до (" << x2 << "," << y2 << ")" << std::endl;
+    }
+    
+    void move(double dx, double dy) override {
+        x += dx;
+        y += dy;
+        x2 += dx;
+        y2 += dy;
+        std::cout << "Перемещаем линию на (" << dx << "," << dy << ")" << std::endl;
+    }
+    
+    void rotate(double angle) override {
+        // Перевод угла в радианы
+        double rad = angle * M_PI / 180.0;
+        double cosA = cos(rad);
+        double sinA = sin(rad);
+        
+        // Перемещаем вторую точку относительно первой
+        double dx = x2 - x;
+        double dy = y2 - y;
+        
+        // Поворот вокруг первой точки
+        double new_dx = dx * cosA - dy * sinA;
+        double new_dy = dx * sinA + dy * cosA;
+        
+        x2 = x + new_dx;
+        y2 = y + new_dy;
+        
+        std::cout << "Поворачиваем линию на " << angle << " градусов" << std::endl;
+    }
+
+    // Дополнительные методы
+    double length() const {
+        double dx = x2 - x;
+        double dy = y2 - y;
+        return sqrt(dx*dx + dy*dy);
+    }
+};
+
+// Базовый класс для параллелограммов
+class Quadrilateral : public virtual Point {
+protected:
+    double width, height;
+    double angle; // Угол наклона
+
+public:
+    Quadrilateral(double x = 0, double y = 0, double width = 0, double height = 0, double angle = 0)
+        : Point(x, y), width(width), height(height), angle(angle) {}
+
+    // Реализация виртуальных методов
+    void draw() const override {
+        std::cout << "Рисуем четырёхугольник с вершиной в (" << x << "," << y 
+                << "), шириной " << width << ", высотой " << height 
+                << " и углом " << angle << std::endl;
+    }
+    
+    void visualize() const override {
+        // Calculate the four corners of the quadrilateral
+        double rad = angle * M_PI / 180.0;
+        double cosA = cos(rad);
+        double sinA = sin(rad);
+        
+        // Top-left corner is at (x,y)
+        double x1 = x;
+        double y1 = y;
+        
+        // Top-right corner
+        double x2 = x + width * cosA;
+        double y2 = y + width * sinA;
+        
+        // Bottom-right corner
+        double x3 = x2 - height * sinA;
+        double y3 = y2 + height * cosA;
+        
+        // Bottom-left corner
+        double x4 = x - height * sinA;
+        double y4 = y + height * cosA;
+        
+        // Draw the quadrilateral
+        globalCanvas.drawLine(round(x1), round(y1), round(x2), round(y2));
+        globalCanvas.drawLine(round(x2), round(y2), round(x3), round(y3));
+        globalCanvas.drawLine(round(x3), round(y3), round(x4), round(y4));
+        globalCanvas.drawLine(round(x4), round(y4), round(x1), round(y1));
+        
+        globalCanvas.display();
+        globalCanvas.clear();
+    }
+    
+    void erase() const override {
+        std::cout << "Стираем четырёхугольник с вершиной в (" << x << "," << y << ")" << std::endl;
+    }
+    
+    void move(double dx, double dy) override {
+        x += dx;
+        y += dy;
+        std::cout << "Перемещаем четырёхугольник на (" << dx << "," << dy << ")" << std::endl;
+    }
+    
+    void rotate(double rotationAngle) override {
+        angle += rotationAngle;
+        // Нормализация угла в диапазоне [0, 360)
+        while (angle >= 360) angle -= 360;
+        while (angle < 0) angle += 360;
+        std::cout << "Поворачиваем четырёхугольник на " << rotationAngle << " градусов" << std::endl;
+    }
+
+    // Геттеры и сеттеры
+    double getWidth() const { return width; }
+    double getHeight() const { return height; }
+    double getAngle() const { return angle; }
+
+    void setWidth(double newWidth) { width = newWidth; }
+    void setHeight(double newHeight) { height = newHeight; }
+    void setAngle(double newAngle) { angle = newAngle; }
+
+    // Метод для вычисления площади
+    virtual double area() const {
+        return width * height * sin(angle * M_PI / 180.0);
+    }
+};
+
+// Implementations for Rectangle, Square, Rhombus, and Parallelogram classes would follow
+// with similar additions of the visualize() method
+
+// Класс Прямоугольник
+class Rectangle : public virtual Quadrilateral {
+public:
+    Rectangle(double x = 0, double y = 0, double width = 0, double height = 0)
+        : Point(x, y), Quadrilateral(x, y, width, height, 0) {}
+    
+    // Переопределение методов
+    void draw() const override {
+        std::cout << "Рисуем прямоугольник с вершиной в (" << x << "," << y 
+                << "), шириной " << width << " и высотой " << height << std::endl;
+    }
+    
+    // We inherit visualize() from Quadrilateral since it's the same drawing logic
+    
+    double area() const override {
+        return width * height;
+    }
+};
+
+// Класс Квадрат
+class Square : public virtual Quadrilateral {
+public:
+    Square(double x = 0, double y = 0, double side = 0)
+        : Point(x, y), Quadrilateral(x, y, side, side, 0) {}
+    
+    // Переопределение методов
+    void draw() const override {
+        std::cout << "Рисуем квадрат с вершиной в (" << x << "," << y 
+                << ") и стороной " << width << std::endl;
+    }
+    
+    // We inherit visualize() from Quadrilateral
+    
+    // Новые методы и сеттеры
+    void setSide(double side) { width = height = side; }
+    double getSide() const { return width; }
+};
+
+// Класс Ромб
+class Rhombus : public virtual Quadrilateral {
+private:
+    double diagonal1, diagonal2;
+
+public:
+    Rhombus(double x = 0, double y = 0, double diagonal1 = 0, double diagonal2 = 0)
+        : Point(x, y), Quadrilateral(x, y, diagonal1/2, diagonal2/2, 45),
+          diagonal1(diagonal1), diagonal2(diagonal2) {}
+    
+    // Переопределение методов
+    void draw() const override {
+        std::cout << "Рисуем ромб с центром в (" << x << "," << y 
+                << "), диагональ 1 = " << diagonal1 
+                << ", диагональ 2 = " << diagonal2 << std::endl;
+    }
+    
+    void visualize() const override {
+        // For a rhombus, we'll draw it differently, using its diagonals
+        double halfD1 = diagonal1 / 2;
+        double halfD2 = diagonal2 / 2;
+        
+        // Calculate the four points of the rhombus
+        // Center is at (x,y)
+        double x1 = x - halfD1;
+        double y1 = y;
+        
+        double x2 = x;
+        double y2 = y + halfD2;
+        
+        double x3 = x + halfD1;
+        double y3 = y;
+        
+        double x4 = x;
+        double y4 = y - halfD2;
+        
+        // Draw the rhombus
+        globalCanvas.drawLine(round(x1), round(y1), round(x2), round(y2));
+        globalCanvas.drawLine(round(x2), round(y2), round(x3), round(y3));
+        globalCanvas.drawLine(round(x3), round(y3), round(x4), round(y4));
+        globalCanvas.drawLine(round(x4), round(y4), round(x1), round(y1));
+        
+        globalCanvas.display();
+        globalCanvas.clear();
+    }
+    
+    double area() const override {
+        return (diagonal1 * diagonal2) / 2.0;
+    }
+    
+    // Геттеры и сеттеры для диагоналей
+    double getDiagonal1() const { return diagonal1; }
+    double getDiagonal2() const { return diagonal2; }
+    void setDiagonal1(double d1) { diagonal1 = d1; width = d1/2; }
+    void setDiagonal2(double d2) { diagonal2 = d2; height = d2/2; }
+};
+
+// Класс Параллелограмм с виртуальным наследованием от Квадрата
+class Parallelogram : public Rectangle, public Square {
+public:
+    Parallelogram(double x = 0, double y = 0, double width = 0, double height = 0, double angle = 0)
+        : Point(x, y), Quadrilateral(x, y, width, height, angle),
+          Rectangle(x, y, width, height), Square(x, y, 0) {}
+    
+    // Переопределение методов
+    void draw() const override {
+        std::cout << "Рисуем параллелограмм с вершиной в (" << x << "," << y 
+                << "), шириной " << width << ", высотой " << height 
+                << " и углом " << angle << std::endl;
+    }
+    
+    // We inherit visualize() from Quadrilateral
+    
+    double area() const override {
+        return width * height * sin(angle * M_PI / 180.0);
+    }
+};
+
+// Main function with visualization examples
+int main() {
+    std::setlocale(LC_ALL, "Russian");
+    
+    std::cout << "=== Демонстрация иерархии геометрических объектов с визуализацией ===" << std::endl;
+    
+    // Create and visualize a line
+    Line line(0, 0, 10, 5);
+    std::cout << "Линия:" << std::endl;
+    line.draw();
+    line.visualize();
+    
+    // Create and visualize a rectangle
+    Rectangle rect(-10, -5, 20, 10);
+    std::cout << "\nПрямоугольник:" << std::endl;
+    rect.draw();
+    rect.visualize();
+    
+    // Create and visualize a square
+    Square square(0, 0, 8);
+    std::cout << "\nКвадрат:" << std::endl;
+    square.draw();
+    square.visualize();
+    
+    // Create and visualize a rhombus
+    Rhombus rhombus(0, 0, 12, 8);
+    std::cout << "\nРомб:" << std::endl;
+    rhombus.draw();
+    rhombus.visualize();
+    
+    // Create and visualize a parallelogram
+    Parallelogram para(-5, -5, 15, 10, 30);
+    std::cout << "\nПараллелограмм:" << std::endl;
+    para.draw();
+    para.visualize();
+    
+    // Demonstrate transformations
+    std::cout << "\n=== Демонстрация трансформаций с визуализацией ===" << std::endl;
+    
+    // Move a square
+    std::cout << "\nПеремещение квадрата:" << std::endl;
+    square.visualize();
+    square.move(5, 5);
+    square.visualize();
+    
+    // Rotate a line
+    std::cout << "\nПоворот линии:" << std::endl;
+    line.visualize();
+    line.rotate(45);
+    line.visualize();
+    
+    // Rotate a parallelogram
+    std::cout << "\nПоворот параллелограмма:" << std::endl;
+    para.visualize();
+    para.rotate(30);
+    para.visualize();
+    
+    return 0;
+}
